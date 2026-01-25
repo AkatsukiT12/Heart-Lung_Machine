@@ -39,21 +39,23 @@ The Akatsuki Heart-Lung Machine Monitoring System is a sophisticated medical dev
 <td width="50%" bgcolor="#f0f9ff">
 
 ### 📊 Real-Time Monitoring
-- **Heart Rate Tracking** - Continuous cardiac rhythm analysis
-- **Pressure Monitoring** - Blood pressure measurement (8-20 mmHg)
-- **Temperature Control** - Precise thermal regulation (36.5-37.5°C)
-- **Oxygen Saturation** - SPO2 level monitoring
-- **Bubble Detection** - Air embolism prevention system
+- **Heart Rate Tracking** - Photoplethysmography (PPG) pulse detection
+- **Pressure Monitoring** - Calculated correlation (40-140 mmHg)
+- **Temperature Control** - Digital precision thermal regulation (35.5-38.5°C)
+- **Oxygen Saturation** - Optical absorption measurement (SPO2 proxy)
+- **Bubble Detection** - Optical transmission air embolism prevention
+- **Flow Rate Monitoring** - Hall effect turbine sensor
 
 </td>
 <td width="50%" bgcolor="#fef3f2">
 
 ### 🎮 Advanced Controls
 - **Computer Vision** - Liquid level detection via camera
-- **Automated Alerts** - Multi-parameter alarm system
-- **Suction Control** - Remote pump activation
+- **Automated Alerts** - Multi-parameter alarm system with debouncing
+- **Dual Pump Control** - Main pump (H-Bridge) and suction pump (MOSFET)
 - **Serial Communication** - High-speed Arduino interface (115200 baud)
 - **Event Logging** - Comprehensive activity tracking
+- **Priming Protection** - 5-second initialization grace period
 
 </td>
 </tr>
@@ -79,7 +81,7 @@ The Akatsuki Heart-Lung Machine Monitoring System is a sophisticated medical dev
             ▼
 ╔════════════════════════╗
 ║  Arduino Hardware      ║  ← 🔌 Sensors & Actuators
-║  + Medical Sensors     ║     Heart Rate | Pressure | Temp
+║  + Medical Sensors     ║     Optical | Temperature | Flow
 ╚════════════════════════╝
 ```
 
@@ -92,14 +94,17 @@ The Akatsuki Heart-Lung Machine Monitoring System is a sophisticated medical dev
 | Component | Specification | Function |
 |-----------|--------------|----------|
 | **Microcontroller** | Arduino (COM8) | Central processing and sensor management |
-| **Heart Rate Sensor** | Optical/ECG | Cardiac rhythm monitoring (40-180 BPM) |
-| **Pressure Transducer** | Medical-grade | Blood pressure measurement (8-20 mmHg) |
-| **SPO2 Sensor** | Pulse oximeter | Oxygen saturation tracking (30-230 range) |
-| **Temperature Sensor** | High-precision | Thermal monitoring (±0.1°C accuracy) |
-| **Bubble Detector** | Ultrasonic | Air embolism prevention (threshold: 300) |
-| **USB Camera** | 640x480 @ 30fps | Liquid level visual monitoring |
-| **Alarm System** | Audio buzzer | Critical parameter alerts |
-| **Suction Pump** | Medical-grade | Remote-controlled activation |
+| **Pulse Sensor** | PPG optical sensor | Heart rate detection via photoplethysmography |
+| **Bubble LED** | Light source | Optical transmission bubble detection |
+| **Bubble LDR** | Light receiver | Detects light scattering from air bubbles |
+| **SPO2 LED** | Red/IR light source | Simulates pulse oximeter light source |
+| **SPO2 LDR** | Photodetector | Measures light absorption for oxygen proxy |
+| **Temperature Sensor** | DS18B20 digital | 1-Wire protocol thermal monitoring |
+| **Flow Meter** | Hall effect turbine | Interrupt-based flow rate measurement |
+| **Alarm LED** | Visual indicator | Critical parameter visual alert |
+| **Buzzer** | Audio alarm | 2000Hz tone generation |
+| **Main Pump** | H-Bridge motor driver | PWM speed and direction control |
+| **Suction Pump** | MOSFET driver | PWM-controlled suction activation |
 
 ### Software Stack
 
@@ -111,6 +116,188 @@ The Akatsuki Heart-Lung Machine Monitoring System is a sophisticated medical dev
 | **PySerial** | 3.5+ | Arduino communication |
 | **Pillow** | 8.0+ | Image processing |
 | **NumPy** | 1.20+ | Numerical computations |
+| **OneWire** | Arduino | DS18B20 temperature protocol |
+
+---
+
+## 📊 Sensor Technologies & Measurement Principles
+
+<div align="center">
+
+### 🔬 Advanced Multi-Modal Sensing Platform
+
+*Combining optical, thermal, and mechanical sensing for comprehensive cardiovascular monitoring*
+
+</div>
+
+---
+
+<table>
+<tr>
+<td width="50%" bgcolor="#fff5f5">
+
+### 💓 Heart Rate Detection
+**Photoplethysmography (PPG)**
+
+Optical pulse sensor measures blood volume changes through skin. Each heartbeat creates a pulse wave that modulates reflected light intensity.
+
+**Algorithm:**
+- Threshold-based beat detection (550 units)
+- Interval timing: BPM = 60000 / interval_ms
+- Exponential smoothing: 70% history + 30% current
+
+**Range:** 40-180 BPM
+
+</td>
+<td width="50%" bgcolor="#f0f9ff">
+
+### 🩸 Blood Pressure Proxy
+**Heart Rate Correlation**
+
+Demonstrates linear relationship between heart rate and blood pressure using correlation factor (k=0.3).
+
+**Processing:**
+- Linear scaling from heart rate
+- 8-sample rolling average
+- Statistical variance analysis
+
+**Range:** 40-140 mmHg *(proxy estimation)*
+
+</td>
+</tr>
+</table>
+
+---
+
+<table>
+<tr>
+<td width="50%" bgcolor="#fefce8">
+
+### 💧 Bubble Detection
+**Optical Transmission**
+
+LED light source → Fluid path → LDR receiver. Air bubbles scatter/block light transmission, dropping sensor readings.
+
+**Logic:**
+- Threshold: <300 = bubble present
+- 5-sample debounce validation
+- Prevents transient false alarms
+
+</td>
+<td width="50%" bgcolor="#f0fdf4">
+
+### 🫁 SPO₂ Oxygen Proxy
+**Optical Absorption**
+
+Single-LED system simulates pulse oximetry. Blood oxygen levels affect light absorption characteristics.
+
+**Logic:**
+- Threshold: <350 = low oxygen risk
+- 5-sample validation window
+- Mimics clinical oximeter concept
+
+</td>
+</tr>
+</table>
+
+---
+
+<table>
+<tr>
+<td width="50%" bgcolor="#faf5ff">
+
+### 🌡️ Temperature Monitoring
+**Digital 1-Wire (DS18B20)**
+
+Precision digital thermometer with internal ADC. Eliminates analog noise through direct digital communication.
+
+**Features:**
+- 9-12 bit resolution
+- OneWire protocol
+- Immediate alarm response
+
+**Range:** 35.5-38.5°C
+
+</td>
+<td width="50%" bgcolor="#ecfdf5">
+
+### 🌊 Flow Rate Measurement
+**Hall Effect Turbine**
+
+Magnetic rotor spins with fluid flow. Hall sensor counts blade passages via interrupts. Each pulse = fixed volume.
+
+**Calculation:**
+- Flow = (pulses × calibration) / time
+- Interrupt-driven precision
+- Real-time L/min monitoring
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🔔 Alert System
+
+### Multi-Level Alarm Protocol
+
+**🔴 Critical Alerts (Immediate Response)**
+- Temperature out of safe range (35.5-38.5°C)
+- Pressure deviation from safe limits (40-140 mmHg)
+- Liquid level critically HIGH or LOW
+
+**🟠 Validated Alerts (5-Sample Debouncing)**
+- Bubble detection (5 consecutive readings <300)
+- Low SPO₂ (5 consecutive readings <350)
+
+**🔵 System Alerts**
+- Serial connection loss (>3 seconds no data)
+- Pump status changes
+- Priming period active (first 5 seconds)
+
+**Alarm Hardware:**
+- **Visual:** Status LED for continuous illumination during alarm conditions
+- **Audible:** Piezo buzzer generating 2000Hz alert tone
+- **Display:** On-screen alarm badge and parameter highlighting in GUI
+
+**Tolerance System:**
+- **Debouncing Window:** 5 consecutive abnormal readings required for bubble/SPO₂ alarms
+- **Priming Period:** First 5 seconds after power-on ignore bubble/SPO₂ alarms
+- **Purpose:** Prevents false alarms during system initialization, air purging, and transient sensor fluctuations
+
+---
+
+## 🎛️ Pump Control Systems
+
+### Main Pump (H-Bridge Motor Driver)
+
+**Control Method:**
+- PWM-based speed regulation for variable flow rates
+- Bidirectional control for forward/reverse operation
+- Separate enable and direction control signals
+
+**Features:**
+- Continuous flow rate adjustment
+- Reversible flow direction for backflushing
+- Precise flow management during procedures
+
+### Suction Pump (MOSFET Driver)
+
+**Control Method:**
+- PWM speed control via power MOSFET
+- On/off control via serial commands from GUI
+- Variable intensity control
+
+**Features:**
+- Remote activation from operator interface
+- Adjustable suction strength
+- Emergency drainage capability
+
+**Serial Commands:**
+```
+1\n  → Enable suction pump
+0\n  → Disable suction pump
+```
 
 ---
 
@@ -126,45 +313,45 @@ The Akatsuki Heart-Lung Machine Monitoring System is a sophisticated medical dev
 
 Normal: 40-180 BPM
 
-Alert on deviation
+PPG sensor with exponential smoothing
 
 </td>
 <td width="33%" align="center" bgcolor="#fef2f2">
 
 **🩸 Pressure**
 
-Normal: 8-20 mmHg
+Normal: 40-140 mmHg
 
-Critical range monitoring
+HR-based correlation proxy
 
 </td>
 <td width="33%" align="center" bgcolor="#fffbeb">
 
 **🌡️ Temperature**
 
-Normal: 36.5-37.5°C
+Normal: 35.5-38.5°C
 
-Precision thermal control
+DS18B20 digital precision
 
 </td>
 </tr>
 <tr>
 <td width="33%" align="center" bgcolor="#f0f9ff">
 
-**🫁 SPO2**
+**🫁 SPO2 Proxy**
 
-Normal: 30-230
+Threshold: >350
 
-Oxygen saturation
+Optical absorption method
 
 </td>
 <td width="33%" align="center" bgcolor="#faf5ff">
 
-**💧 Bubble Value**
+**💧 Bubble Detection**
 
 Threshold: >300
 
-Air detection system
+Light transmission technique
 
 </td>
 <td width="33%" align="center" bgcolor="#f0fdf4">
@@ -184,9 +371,9 @@ Visual CV detection
 The system employs advanced computer vision techniques for non-contact liquid level monitoring:
 
 - **Color Detection**: Dual HSV range for red liquid identification
-- **ROI Analysis**: Configurable region of interest (200-400px horizontal)
-- **Threshold Zones**: 40% (low) to 60% (high) normal range
-- **Real-time Feedback**: Visual indicators and Arduino communication
+- **ROI Analysis**: Configurable region of interest for focused monitoring
+- **Threshold Zones**: 40% (low) to 60% (high) normal operating range
+- **Real-time Feedback**: Visual indicators and Arduino serial communication
 
 ---
 
@@ -206,60 +393,25 @@ pip install pyserial
 pip install pillow
 ```
 
+**Arduino Libraries**
+```
+OneWire
+DallasTemperature
+```
+
 </td>
 <td width="50%" bgcolor="#f0f9ff">
 
 **🔧 Hardware Setup**
 - Arduino board connected via USB
-- Camera device (index 0)
-- Sensor array properly wired
-- COM port configured (default: COM8)
+- Laptop with integrated camera
+- All sensors wired per circuit diagram
+- COM port identification
+- Flow meter on interrupt-capable pin
 
 </td>
 </tr>
 </table>
-
-### Quick Start Guide
-
-#### Step 1: Hardware Configuration
-
-```bash
-# Connect Arduino to computer
-# Upload the Arduino sketch
-# Verify COM port (Windows: Device Manager, Linux: ls /dev/tty*)
-# Connect camera to USB port
-```
-
-#### Step 2: Software Configuration
-
-Open `akatsuki_heartlung_monitor_gui.py` and configure:
-
-```python
-# Arduino Settings
-ARDUINO_PORT = 'COM8'  # Update to your port
-BAUD_RATE = 115200
-
-# Camera Settings
-CAMERA_WIDTH = 640
-CAMERA_HEIGHT = 480
-
-# Liquid Detection ROI
-ROI_X_START, ROI_X_END = 200, 400  # Adjust for your setup
-Y_BOTTOM_INPUT = 100
-Y_TOP_INPUT = 300
-```
-
-#### Step 3: Launch Application
-
-```bash
-python akatsuki_heartlung_monitor_gui.py
-```
-
-The system will:
-- ✅ Initialize Arduino connection
-- ✅ Start camera feed
-- ✅ Launch monitoring dashboard
-- ✅ Begin real-time data collection
 
 ---
 
@@ -270,27 +422,27 @@ The system will:
 The Akatsuki interface features a modern, two-panel design:
 
 **Left Panel - Camera Feed**
-- Real-time video stream with overlay graphics
-- Liquid level visualization with threshold lines
-- Parameter status display (HR, Pressure, Level)
-- Alarm status banner
+- Real-time video stream with graphical overlays
+- Liquid level visualization with threshold reference lines
+- Live parameter status display (HR, Pressure, Level)
+- Alarm status banner with color coding
 
 **Right Panel - System Parameters**
-- Heart Rate (💓) - BPM display
-- Pressure (🩸) - mmHg measurement
-- Bubble Value (💧) - Air detection
-- SPO2 Value (🫁) - Oxygen saturation
-- Temperature (🌡️) - Celsius reading
-- Liquid Level (🧪) - Pixel position
-- Suction Control (🔄) - Pump toggle button
+- Heart Rate (💓) - BPM display with PPG smoothing
+- Pressure (🩸) - mmHg measurement (HR-correlated)
+- Bubble Value (💧) - Optical transmission reading
+- SPO2 Value (🫁) - Optical absorption proxy
+- Temperature (🌡️) - Digital celsius reading
+- Liquid Level (🧪) - Pixel position indicator
+- Suction Control (🔄) - Manual pump toggle button
 
 ### Color-Coded Alerts
 
-| Status | Color | Meaning |
-|--------|-------|---------|
-| 🟢 Green | #00ff88 | Normal parameters |
-| 🟠 Orange | #ffa726 | Warning - attention needed |
-| 🔴 Red | #ff3d3d | Critical - immediate action required |
+| Status | Meaning |
+|--------|---------|
+| 🟢 Green | All parameters within normal range |
+| 🟠 Orange | Warning - attention required |
+| 🔴 Red | Critical - immediate action needed |
 
 ---
 
@@ -298,14 +450,14 @@ The Akatsuki interface features a modern, two-panel design:
 
 ### Liquid Level Detection Algorithm
 
-The system uses advanced HSV color space analysis:
+The system uses advanced HSV color space analysis for robust liquid detection:
 
 ```python
-# Red liquid detection (dual HSV range)
-LOWER_RED1 = [0, 120, 70]    # Lower red hue
+# Red liquid detection (dual HSV range to handle hue wraparound)
+LOWER_RED1 = [0, 120, 70]    # Lower red hue range
 UPPER_RED1 = [10, 255, 255]
 
-LOWER_RED2 = [170, 120, 70]  # Upper red hue
+LOWER_RED2 = [170, 120, 70]  # Upper red hue range
 UPPER_RED2 = [180, 255, 255]
 
 # Morphological operations for noise reduction
@@ -315,38 +467,14 @@ operations: MORPH_OPEN → MORPH_CLOSE
 
 ### Processing Pipeline
 
-1. **Frame Acquisition** - Capture from USB camera
-2. **ROI Extraction** - Isolate monitoring region
-3. **Color Space Conversion** - BGR → HSV
-4. **Threshold Application** - Dual-range red detection
-5. **Noise Filtering** - Morphological operations
-6. **Level Calculation** - Pixel analysis (highest point)
-7. **Range Classification** - LOW / NORMAL / HIGH
-8. **Arduino Communication** - Serial status update
-
----
-
-## 🔔 Alert System
-
-### Multi-Level Alarm Protocol
-
-**🔴 Critical Alerts**
-- Heart rate outside 40-180 BPM range
-- Pressure deviation from 8-20 mmHg
-- Temperature beyond 36.5-37.5°C limits
-- Bubble detection below threshold (300)
-- Liquid level HIGH or LOW status
-
-**🟠 Warning Indicators**
-- Connection loss (>3 seconds no data)
-- SPO2 value anomalies
-- Suction pump status changes
-
-**Visual & Audio Feedback**
-- On-screen alarm badge (top-right)
-- Video overlay banner (bottom)
-- Parameter card highlighting
-- Event log entries with timestamps
+1. **Frame Acquisition** - Capture video frame from laptop camera
+2. **ROI Extraction** - Isolate predefined region of interest
+3. **Color Space Conversion** - Transform BGR to HSV color space
+4. **Threshold Application** - Apply dual-range red color mask
+5. **Noise Filtering** - Morphological opening and closing operations
+6. **Level Calculation** - Identify highest red pixel position
+7. **Range Classification** - Categorize as LOW / NORMAL / HIGH
+8. **Arduino Communication** - Transmit status via serial protocol
 
 ---
 
@@ -356,7 +484,7 @@ operations: MORPH_OPEN → MORPH_CLOSE
 
 **Status Message Structure:**
 ```
-[STATUS] HR=120 P=15 Bval=450 Sval=150 T=37.0 Alarm=NO Suction=OFF
+[STATUS] HR=120 P=95 Bval=450 Sval=450 T=37.0 Alarm=NO Suction=OFF
 ```
 
 **Control Commands:**
@@ -365,7 +493,7 @@ operations: MORPH_OPEN → MORPH_CLOSE
 0\n  → Disable suction pump
 ```
 
-**Level Status:**
+**Level Status (Python to Arduino):**
 ```
 1    → Liquid level NORMAL
 0    → Liquid level OUT OF RANGE
@@ -380,21 +508,22 @@ operations: MORPH_OPEN → MORPH_CLOSE
 <td width="50%">
 
 ### Medical Applications
-- Cardiac surgery monitoring
-- Extracorporeal membrane oxygenation (ECMO)
-- Cardiopulmonary bypass procedures
-- Critical care patient monitoring
-- Medical device testing
+- Cardiac surgery monitoring (prototype/training)
+- Extracorporeal membrane oxygenation (ECMO) simulation
+- Cardiopulmonary bypass procedure education
+- Medical device testing and validation
+- Clinical engineering demonstrations
 
 </td>
 <td width="50%">
 
 ### Research & Development
-- Medical device prototyping
-- Computer vision algorithm testing
-- Embedded systems integration
+- Optical sensor integration testing
+- Computer vision algorithm validation
+- Embedded systems prototyping
 - Real-time monitoring system design
-- Educational demonstrations
+- Multi-modal sensor fusion research
+- Biomedical engineering education
 
 </td>
 </tr>
@@ -404,12 +533,15 @@ operations: MORPH_OPEN → MORPH_CLOSE
 
 ## 🔒 Safety Features
 
-- **Multi-Parameter Redundancy** - Continuous verification across all sensors
-- **Immediate Alert System** - <100ms response time for critical events
-- **Historical Tracking** - 50-point data history for trend analysis
-- **Automatic Reconnection** - Resilient Arduino communication
+- **Multi-Parameter Redundancy** - Optical, thermal, and flow monitoring
+- **Intelligent Debouncing** - 5-sample validation prevents false alarms
+- **Priming Protection** - 5-second initialization grace period
+- **Immediate Critical Alerts** - Sub-100ms response for temperature/pressure
+- **Historical Tracking** - 50-point rolling data buffer for trend analysis
+- **Automatic Reconnection** - Resilient Arduino serial communication
 - **Comprehensive Logging** - 20-event circular buffer with timestamps
-- **Visual Confirmation** - Color-coded status on all parameters
+- **Visual Confirmation** - Color-coded status indicators on all parameters
+- **Dual Pump Safety** - Independent main and suction pump control circuits
 
 ---
 
